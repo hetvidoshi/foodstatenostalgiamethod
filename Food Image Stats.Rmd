@@ -1,0 +1,77 @@
+---
+title: "Food Image Stats New"
+author: "csk87"
+date: "3/28/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=TRUE}
+
+imagesCauc <- read.csv("~/Anderson Lab/Food Images/Food Image Stats.csv", header = TRUE, stringsAsFactors = TRUE)  
+imagesInd <- read.csv("~/Anderson Lab/Food Images/IndianFoodImages.csv", header = TRUE, stringsAsFactors = TRUE) 
+imagesCauc<- imagesCauc[-seq(from= 119, to=1000),]
+summary(imagesCauc)
+summary(imagesInd)
+```
+
+```{r echo=TRUE, out.height=500}
+par(mfrow = c(2, 3)) 
+hist(imagesCauc$meanRngeFlt, main = "Cauc. Mean Local Range", cex.main=1) 
+hist(imagesCauc$hue, main = "Cauc. Hues", cex.main=1) 
+hist(imagesCauc$sat, main = "Cauc. Saturation", cex.main=1) 
+
+hist(imagesInd$meanRngeFlt, main = "Indian Mean Range Filt", cex.main=1) 
+hist(imagesInd$hue, main = "Indian Hues", cex.main=1) 
+hist(imagesInd$sat, main = "Indian Saturation", cex.main=1)
+
+hist(imagesCauc$meanG, main = "Cauc. Mean Grey Values", cex.main=1) 
+hist(imagesCauc$integrated.density, main = "Cauc. Integrated Density", cex.main=1) 
+hist(imagesCauc$medianG, main = "Cauc. Median Grey Values", cex.main=1) 
+ 
+hist(imagesInd$meanG, main = "Indian Mean Grey Values", cex.main=1) 
+hist(imagesInd$integrated.density, main = "Indian Integrated Density", cex.main=1) 
+hist(imagesInd$medianG, main = "Indian Median Grey Values", cex.main=1) 
+
+par(mfrow = c(2, 2)) 
+hist(imagesCauc$medLum, main = "Cauc. Median Lum. Values", cex.main=1)
+hist(imagesCauc$meanLum, main = "Cauc. Mean Lum. Values", cex.main=1)
+hist(imagesInd$medLum, main = "Indian Median Lum. Values", cex.main=1) 
+hist(imagesInd$meanLum, main = "Indian Mean Lum. Values", cex.main=1) 
+```
+
+
+
+```{r echo=TRUE}
+
+t.test(imagesCauc$meanRngeFlt, imagesInd$meanRngeFlt, paired=F, var.equal=F, conf.level=.95)
+
+```
+
+```{r echo=TRUE}
+
+t.test(imagesCauc$meanLum, imagesInd$meanLum, paired=F, var.equal=F, conf.level=.95)
+
+```
+```{r echo=TRUE}
+
+t.test(imagesCauc$hue, imagesInd$hue, paired=F, var.equal=F, conf.level=.95)
+
+```
+
+```{r echo=TRUE}
+
+t.test(imagesCauc$sat, imagesInd$sat, paired=F, var.equal=F, conf.level=.95)
+
+```
+
+
+```{r echo=TRUE}
+
+t.test(imagesCauc$meanG, imagesInd$meanG, paired=F, var.equal=F, conf.level=.95)
+
+```
+
