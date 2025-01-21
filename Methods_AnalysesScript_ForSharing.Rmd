@@ -1,0 +1,1266 @@
+---
+title: "Methods_Results_Manuscript_ForSharing"
+author: "Hetvi Doshi"
+date: "2024-12-20"
+output: pdf_document
+---
+
+```{r setup libraries}
+
+library(tidyverse); library(readxl); library(tools)
+
+library(ggplot2)
+library(ggpubr)
+library(psycho)
+library(lmerTest)
+library(emmeans)
+library(data.table)
+library(dplyr)
+library(car)
+library(psych)
+library(BlandAltmanLeh)
+library(gridExtra)
+library(irr)
+library(ggsci)
+library(tidyr)
+library(nlme)
+library(ggh4x)
+library(viridis)
+library(RColorBrewer)
+
+```
+
+Note: wherever you see a directory name, please change it.
+
+
+```{r demographics}
+
+## Cohort 1
+
+demographics <- read_excel("/Users/hetvidoshi176/Desktop/Research projects/Ratatouille/Pilot/Participant_Demographics.xlsx")
+demographics <- demographics %>% 
+  mutate(Age = as.numeric(Age))
+
+demographics %>% 
+  group_by(Place_3) %>% 
+  summarize(mean = mean(Age), sd = sd(Age), min = min(Age), max = max(Age))
+  
+demographics %>% 
+  count(Race, Place_3)
+
+summary_demographics <- demographics %>% 
+  count(Place_3, Sex)
+
+summary_demographics
+
+## COHORT 1 T2 
+
+# Time to return to study - run the next two chunks before running this sub-section
+
+count_returngrp <- combined_ratings %>% # list of participants who came back
+  count(Home_Country, participant)
+
+meanage_returning <- methods_ratings %>% # time to come back
+  group_by(Home_Country) %>% 
+  summarise_at(vars(Age), list(mean = mean, sd = sd))
+
+
+# Demographics of C1T2
+
+demographics_returning_grp <- read_excel(("/Users/hetvidoshi176/Desktop/Research projects/Ratatouille/Pilot/Returning_Group_Demographics.xlsx"))
+
+demographics_returning_grp <- demographics_returning_grp %>% 
+  mutate(Age = as.numeric(Age))
+
+meanage_rg <- demographics_returning_grp %>% 
+  group_by(Country) %>% 
+  summarise_at(vars(Age), list(mean = mean, sd = sd))
+
+summary_demographics_returning_grp <- demographics_returning_grp %>% 
+  count(Country, Sex)
+
+summary_demographics_returning_grp
+
+summary_demographics
+
+## COHORT 2
+
+demographics_grp2 <- read_excel("/Users/hetvidoshi176/Desktop/Research projects/Ratatouille/Pilot/Group2_Methods_Demo.xlsx")
+demographics_grp2 <- demographics_grp2 %>% 
+  mutate(Age = as.numeric(Age)) %>% 
+  mutate(Race = as.factor(Race))
+
+demographics_grp2 %>% 
+  count(Country, Race)
+
+summary_demographics_grp2 <- demographics_grp2 %>% 
+  count(Country, Gender)
+
+summary_demographics_grp2
+
+meanage_grp2 <- demographics_grp2 %>% 
+  group_by(Country) %>% 
+  summarize(mean = mean(Age), sd = sd(Age), min = min(Age), max = max(Age))
+  #summarise_at(vars(Age), list(mean = mean, sd = sd))
+
+meanage_grp2
+
+summary_demographics_grp2
+
+## COMBINING COHORTS to get MEAN + SD 
+
+demographics_combined <- read_excel("/Users/hetvidoshi176/Desktop/Research projects/Ratatouille/Pilot/Group2_Methods_Demo.xlsx",2)
+
+demographics_combined <- demographics_combined %>% 
+  mutate(Age = as.numeric(Age)) %>% 
+  mutate(Race = as.factor(Race))
+
+demographics_combined %>% 
+  group_by(Country) %>% 
+  summarize(mean = mean(Age), sd = sd(Age), min = min(Age), max = max(Age))
+
+demographics_combined %>% 
+  count(Country,Race)
+
+```
+
+```{r setup primary dataframes for the three cohorts}
+
+### COHORT 1
+
+data_dir <- "~/Desktop/Research projects/Ratatouille/Pilot/CSV/"
+data_files = list.files(data_dir)
+
+data_list = lapply(data_files, function(x){
+  tdf = read_csv(paste0(data_dir,x))
+  tdf 
+}) %>% 
+  rbindlist(TRUE,TRUE) # save this to an excel 
+
+all_ratings <- data_list %>% 
+  filter(!ImageName %in% c("Goan-Prawn-Curry.jpg","aloo parantha 2.jpg","aloo paratha.jpg","Bhindi Masala.jpg","bombaySandwich2.jpg","chapati2.jpg","chicken_frankie.jpg","chickenkarahi.jpg","chickenKarahi2.jpg","chipsAndDIp.jpg","coleSlaw2.jpg",
+                          "daal pakwan.jpg","dosa3.jpg","goatcurry2.jpg","grilledcheese2.jpg","gyro2.jpg","idli.jpg","kadhi-pakora.jpg","keemaAloo2.jpg","lamb vindaloo2.jpg","masala_papad.jpg","momo 2.jpg","pani puri.jpg","sarsonKaSaag3.jpg",
+                          "smilies.jpg","thepla.jpg","tomatoSoup.jpg","chickenSalad2.jpg","bombaySandwhich2.jpg")) %>% 
+  filter(!FoodType %in% c("DEMO")) %>% 
+  select(ImageName, FamSlider.response, ComfSlider.response, NosSlider.response, participant, FoodType, `food group`) %>% 
+  drop_na(ImageName) %>% 
+  mutate(FamSlider.response = as.numeric(FamSlider.response), 
+         ComfSlider.response = as.numeric(ComfSlider.response),
+         NosSlider.response = as.numeric(NosSlider.response)) %>% 
+  mutate(FoodType = case_when(FoodType == "Caucasian" ~ "1", T ~ "0"))
+
+# recoding data as home and foreign food 
+
+#### COHORT 1 T2
+
+data_dir2 <- "~/Desktop/Research projects/Ratatouille/MethodsPaper/CSV_Methods/"
+data_files2 = list.files(data_dir2)
+
+data_list2 = lapply(data_files2, function(x){
+  tdf = read_csv(paste0(data_dir2,x))
+  tdf 
+}) %>% 
+  rbindlist(TRUE,TRUE) # save this to an excel 
+
+methods_ratings <- data_list2 %>% 
+  filter(!ImageName %in% c("Goan-Prawn-Curry.jpg","aloo parantha 2.jpg","aloo paratha.jpg","Bhindi Masala.jpg","bombaySandwich2.jpg","chapati2.jpg","chicken_frankie.jpg","chickenkarahi.jpg","chickenKarahi2.jpg","chipsAndDIp.jpg","coleSlaw2.jpg",
+                          "daal pakwan.jpg","dosa3.jpg","goatcurry2.jpg","grilledcheese2.jpg","gyro2.jpg","idli.jpg","kadhi-pakora.jpg","keemaAloo2.jpg","lamb vindaloo2.jpg","masala_papad.jpg","momo 2.jpg","pani puri.jpg","sarsonKaSaag3.jpg",
+                          "smilies.jpg","thepla.jpg","tomatoSoup.jpg","chickenSalad2.jpg","bombaySandwhich2.jpg")) %>% 
+  filter(!FoodType %in% c("DEMO")) %>% 
+  select(ImageName, FamSlider.response, ComfSlider.response, NosSlider.response, participant, FoodType) %>% 
+  drop_na(ImageName) %>% 
+  mutate(FamSlider.response = as.numeric(FamSlider.response), ComfSlider.response = as.numeric(ComfSlider.response),
+         NosSlider.response = as.numeric(NosSlider.response)) %>% 
+  rename(Familiarity2 = FamSlider.response) %>% 
+  rename(Comfort2 = ComfSlider.response) %>% 
+  rename(Nostalgia2 = NosSlider.response)
+
+#### COHORT 2
+
+data_dir3 <- "~/Desktop/Research projects/Ratatouille/AMT/AMT1/CSV/" 
+data_files3 = list.files(data_dir3)
+
+data_list3 = lapply(data_files3, function(x){
+  tdf = read_csv(paste0(data_dir3,x))
+  tdf 
+}) %>% 
+  rbindlist(TRUE,TRUE) # save this to an excel 
+
+group_2 <- data_list3 %>% 
+  filter(!ImageName %in% c("bosco.jpg","corndog.jpg","Egg-Curry.jpg","Kabiraji.jpg","kangshoi.jpg","karimeen.jpg","kbbq.jpg","Lunchables.jpg","Laalmaas.jpg","malaikofta.jpg","misalpav.jpg",
+                           "mushroomsukka.jpg","rotlotameta.jpg","shukto.jpg","tabakhmaaz.jpg","undhiyo.jpg","venpongal.jpg")) %>% 
+  filter(!FoodType %in% c("DEMO")) %>% 
+  filter(!participant %in% c(106,119,123,126,127,137,139,140,141,144,148,160,162)) %>% 
+  select(ImageName, FoodType, FamSlider.response, ComfSlider.response, NosSlider.response, participant, `food group`) %>% 
+  drop_na(ImageName) %>% 
+  mutate(FamSlider.response = as.numeric(FamSlider.response), ComfSlider.response = as.numeric(ComfSlider.response),
+         NosSlider.response = as.numeric(NosSlider.response)) %>% 
+  mutate(FoodType = case_when(FoodType == "Caucasian" ~ "1", T ~ "0"))
+
+```
+
+
+```{r setup secondary dataframes}
+
+## FUNCTION FOR changing ImageNames
+
+transform_filename <- function(filename) {
+  # Remove the file extension
+  name_without_extension <- sub("\\.jpg$", "", filename)
+  
+  # Remove any digits from the string
+  name_without_digits <- gsub("[0-9]", "", name_without_extension)
+  
+  # Remove dashes and underscores
+  name_cleaned <- gsub("[-_]", " ", name_without_digits)
+  
+  # Split the string into words
+  words <- strsplit(name_cleaned, "(?<=.)(?=\\p{Lu}|\\P{L})", perl = TRUE)[[1]]
+  
+  # Capitalize the first letter of each word
+  words_capitalized <- sapply(words, function(word) {
+    paste0(toupper(substring(word, 1, 1)), tolower(substring(word, 2)))
+  })
+  
+  # Join the words with a space
+  final_name <- paste(words_capitalized, collapse = " ")
+  
+  final_name <- gsub("  ", " ", final_name)
+  
+  return(final_name)
+}
+
+# CREATING SECONDARY DATAFRAMES
+
+new_all_ratings <- all_ratings %>% 
+  rename(Home_Country = `food group`) %>% 
+  mutate(FoodType = case_when(
+    FoodType == "O" & Home_Country == "0" ~ "Home",
+    FoodType == "1" & Home_Country == "1" ~ "Home",
+    FoodType == "1" & Home_Country == "0" ~ "Foreign",
+    FoodType == "0" & Home_Country == "1" ~ "Foreign",
+    T ~ "Home")) %>% 
+  mutate(Home_Country = case_when(Home_Country == 1 ~ "USA", T ~ "India"))
+
+# Using function for changing imagenames - ONLY RUN THIS SUBSECTION ONCE OR IT CAUSES MAJOR ERRORS WITH NAMING OF FILES
+
+all_ratings <- all_ratings %>% #C1
+  mutate(ImageName = sapply(ImageName, transform_filename))
+
+new_all_ratings <- new_all_ratings %>% #C1
+  mutate(ImageName = sapply(ImageName, transform_filename))
+
+methods_ratings <- methods_ratings %>% #C1T2
+  mutate(ImageName = sapply(ImageName, transform_filename))
+
+group_2 <- group_2 %>% #C2
+  mutate(ImageName = sapply(ImageName, transform_filename))
+
+# now combining the two data frames only for participants that are in both C1 and C1T2
+
+combined_ratings <- left_join(methods_ratings, new_all_ratings, by = c("participant", "ImageName"))
+
+combined_ratings <- combined_ratings %>% 
+  rename(FoodCountry = FoodType.x) %>% 
+  rename(FoodType = FoodType.y) %>% 
+  rename(Familiarity = FamSlider.response) %>% 
+  rename(Comfort = ComfSlider.response) %>% 
+  rename(Nostalgia = NosSlider.response) 
+
+####
+
+# adding food type, changing home country, removing non-shared images
+
+group_1 <- new_all_ratings %>% 
+  filter(!ImageName %in% c(
+                    "Thali northern no meat with sweet",
+                    "Thali southern no sweet",
+                    "Thali northern with meat no sweet",
+                    "Thali nothern no meat no sweet",
+                    "Thali southern no sweet",
+                    "Thali sweet southern")) %>% 
+  mutate(nos_group = case_when(NosSlider.response < 3 ~ "Low Nostalgia",
+                               NosSlider.response > 5 ~ "High Nostalgia", 
+                               T ~ "Medium Nostalgia"),
+         Cohort = "Cohort 1") 
+  
+#group_1 <- na.omit(group_1)
+  
+group_2_nothali <- group_2 %>% 
+  filter(!ImageName %in% c(
+                    "Thali northern no meat with sweet",
+                    "Thali southern no sweet",
+                    "Thali northern with meat no sweet",
+                    "Thali nothern no meat no sweet",
+                    "Thali southern no sweet",
+                    "Thali sweet southern",
+                    "Thali southern sweet")) %>% 
+  rename(Home_Country = `food group`) %>% 
+  mutate(FoodType = case_when(
+    FoodType == "O" & Home_Country == "0" ~ "Home",
+    FoodType == "1" & Home_Country == "1" ~ "Home",
+    FoodType == "1" & Home_Country == "0" ~ "Foreign",
+    FoodType == "0" & Home_Country == "1" ~ "Foreign",
+    T ~ "Home")) %>% 
+  mutate(Home_Country = case_when(Home_Country == 1 ~ "USA", T ~ "India")) %>% 
+  mutate(nos_group = case_when(NosSlider.response < 3 ~ "Low Nostalgia",
+                               NosSlider.response > 5 ~ "High Nostalgia", 
+                               T ~ "Medium Nostalgia"),
+         Cohort = "Cohort 2") 
+
+groups_combined <- rbind(group_1, group_2_nothali) # combining C1 and C2
+
+# dataframe for group 1 image 
+
+grp1_ImageType <- all_ratings %>% 
+  filter(!ImageName %in% c(
+                    "Thali northern no meat with sweet",
+                    "Thali southern no sweet",
+                    "Thali northern with meat no sweet",
+                    "Thali nothern no meat no sweet",
+                    "Thali southern no sweet",
+                    "Thali sweet southern")) %>% 
+  mutate(FoodGroup = case_when(FoodType == "1" ~ "USA Foods", T ~ "India Foods"),
+  Home_Country = case_when(`food group` == "1" ~ "USA", T ~ "India"),
+  nos_group = case_when(NosSlider.response < 3 ~ "Low Nostalgia",
+                               NosSlider.response > 5 ~ "High Nostalgia", 
+                               T ~ "Medium Nostalgia"))
+
+# dataframe for group 2 image 
+
+grp2_ImageType <- group_2 %>% 
+  filter(!ImageName %in% c(
+                    "Thali northern no meat with sweet",
+                    "Thali southern no sweet",
+                    "Thali northern with meat no sweet",
+                    "Thali nothern no meat no sweet",
+                    "Thali southern no sweet",
+                    "Thali sweet southern",
+                    "Thali southern sweet")) %>% 
+  mutate(FoodGroup = case_when(FoodType == "1" ~ "USA Foods", T ~ "India Foods")) %>% 
+  mutate(Home_Country = case_when(`food group` == "1" ~ "USA", T ~ "India"), 
+         nos_group = case_when(NosSlider.response < 3 ~ "Low Nostalgia",
+                               NosSlider.response > 5 ~ "High Nostalgia", 
+                               T ~ "Medium Nostalgia")) 
+  
+## dataframe for C1T2
+
+group1R <- methods_ratings %>% 
+  filter(!ImageName %in% c(
+                    "Thali northern no meat with sweet",
+                    "Thali southern no sweet",
+                    "Thali northern with meat no sweet",
+                    "Thali nothern no meat no sweet",
+                    "Thali southern no sweet",
+                    "Thali sweet southern")) %>% 
+  mutate(FoodType = case_when(FoodType == "Caucasian" ~ "USA Foods", T ~ "India Foods")) %>% 
+  mutate(nos_group = case_when(Nostalgia2 < 3 ~ "Low Nostalgia",
+                               Nostalgia2 > 5 ~ "High Nostalgia", 
+                               T ~ "Medium Nostalgia")) 
+
+# combining for food group visualization 
+
+grp1_image <- grp1_ImageType %>% 
+  select(-`food group`) %>% 
+  mutate(Cohort = "Cohort 1")
+
+grp2_image <- grp2_ImageType %>% 
+  select(-`food group`) %>% 
+  mutate(Cohort = "Cohort 2")
+
+binned_groups_combined <- rbind(grp1_image, grp2_image) 
+
+## THIS DATAFRAME IS USED FOR MANY ANALYSES BELOW - It's the raw data for C1 and C2 combined
+
+binned_groups_combined <- binned_groups_combined %>% 
+  mutate(Food_Relationship = case_when(
+    FoodGroup == "India Foods" & Home_Country == "USA" ~ "Foreign",
+    FoodGroup == "USA Foods" & Home_Country == "USA" ~ "Home",
+    FoodGroup == "USA Foods" & Home_Country == "India" ~ "Foreign",
+    FoodGroup == "India Foods" & Home_Country == "India" ~ "Home"))
+
+## People proportions
+
+proportions_grp1 <- group_1 %>% 
+  summarize(n = n(),.by = c("participant", "FoodType", "Home_Country","nos_group")) %>% 
+  mutate(total = sum(n),.by = "participant") %>% 
+  mutate(proportion = n/total, Cohort = "Cohort 1") 
+
+proportions_grp2 <- group_2_nothali %>% 
+  summarize(n = n(),.by = c("participant", "FoodType", "Home_Country","nos_group")) %>% 
+  mutate(total = sum(n),.by = "participant") %>% 
+  mutate(proportion = n/total, Cohort = "Cohort 2") 
+
+prop_people_combined <- rbind(proportions_grp1, proportions_grp2)
+
+## Image Proportions
+
+proportions_img_grp1 <- grp1_image %>% 
+  summarize(n = n(),.by = c("ImageName", "FoodGroup","nos_group")) %>% 
+  mutate(total = sum(n),.by = "ImageName") %>% 
+  mutate(proportion = n/total, Cohort = "Cohort 1") 
+
+proportions_img_grp2 <- grp2_image %>% 
+  summarize(n = n(),.by = c("ImageName", "FoodGroup","nos_group")) %>% 
+  mutate(total = sum(n),.by = "ImageName") %>% 
+  mutate(proportion = n/total, Cohort = "Cohort 2") 
+
+proportions_img_G1R <- group1R %>% 
+  summarize(n = n(),.by = c("ImageName", "FoodType","nos_group")) %>% 
+  mutate(total = sum(n),.by = "ImageName") %>% 
+  mutate(proportion = n/total, Cohort = "Cohort 1 Returning") 
+
+prop_img_cohorts_combined <- rbind(proportions_img_grp1, proportions_img_grp2)
+
+```
+
+```{r calculating hunger difference}
+
+## COHORT 1
+
+# get hunger ratings
+
+Hunger <- subset(data_list, select = c(slider.response, participant))
+Hunger <- na.omit(Hunger) # getting rid of all the N/A values 
+
+# Cleaning up the Hunger dataframe 
+
+Hunger <- do.call("cbind", split(Hunger, rep(c(1, 2), length.out = nrow(Hunger))))
+Hunger <- Hunger[,-2]
+Hunger <- Hunger %>% 
+  rename(participant = `2.participant`) %>% 
+  rename(Pre_Hunger = `1.slider.response`) %>% 
+  rename(Post_Hunger = `2.slider.response`)
+
+# Calculating hunger difference 
+
+Hunger$Hunger_Difference <- (Hunger$Post_Hunger - Hunger$Pre_Hunger) # positive means hunger increased, negative means hunger decreased 
+
+Hunger_Difference_grp1 <- subset(Hunger, select = c(participant, Pre_Hunger, Post_Hunger, Hunger_Difference))
+
+Hunger_Difference_grp1$Cohort <- "Cohort 1"
+
+# add this to the main data_frame for C1
+
+all_ratings <- all_ratings |> left_join(Hunger_Difference_grp1, by = c('participant'))
+
+# t-test of pre- and post-hunger for C1
+
+t.test(Hunger_Difference_grp1$Post_Hunger, Hunger_Difference_grp1$Pre_Hunger, paired = TRUE, alternative = "two.sided")
+
+## COHORT 1 TIMEPOINT 2
+
+#get hunger ratings
+
+Hunger <- subset(data_list2, select = c(slider.response, participant))
+Hunger <- na.omit(Hunger) # getting rid of all the N/A values 
+
+# Cleaning up the Hunger dataframe 
+
+Hunger <- do.call("cbind", split(Hunger, rep(c(1, 2), length.out = nrow(Hunger))))
+Hunger <- Hunger[,-2]
+Hunger <- Hunger %>% 
+  rename(participant = `2.participant`) %>% 
+  rename(Pre_Hunger = `1.slider.response`) %>% 
+  rename(Post_Hunger = `2.slider.response`)
+
+# Calculating hunger difference 
+
+Hunger$Hunger_Difference2 <- (Hunger$Post_Hunger - Hunger$Pre_Hunger) # positive means hunger increased, negative means hunger decreased 
+
+Hunger_Difference <- subset(Hunger, select = c(participant, Pre_Hunger, Post_Hunger, Hunger_Difference2))
+
+# add this to the main data_frame for C1T2 too
+
+methods_ratings <- methods_ratings |> left_join(Hunger_Difference, by = c('participant'))
+
+# t-test 
+
+t.test(Hunger_Difference$Post_Hunger, Hunger_Difference$Pre_Hunger, paired = TRUE, alternative = "two.sided")
+
+## COHORT 2
+
+#get hunger ratings
+
+Hunger_grp2 <- subset(data_list3, select = c(slider.response, participant))
+Hunger_grp2 <- na.omit(Hunger_grp2) # getting rid of all the N/A values 
+
+# Cleaning up the Hunger dataframe 
+Hunger_grp2 <- do.call("cbind", split(Hunger_grp2, rep(c(1, 2), length.out = nrow(Hunger_grp2))))
+Hunger_grp2 <- Hunger_grp2[,-2]
+Hunger_grp2 <- Hunger_grp2 %>% 
+  rename(participant = `2.participant`) %>% 
+  rename(Pre_Hunger = `1.slider.response`) %>% 
+  rename(Post_Hunger = `2.slider.response`)
+
+# Calculating hunger difference 
+Hunger_grp2$Hunger_Difference <- (Hunger_grp2$Post_Hunger - Hunger_grp2$Pre_Hunger) # positive means hunger increased, negative means hunger decreased 
+
+# removing Indian Americans
+Hunger_grp2 <- subset(Hunger_grp2, participant != 106 & participant != 119 & participant != 123 & participant != 126 & participant != 127 & participant != 137 & participant != 139 & participant != 140 & participant != 141 & participant != 144 & participant != 148 & participant != 160 & participant != 162) 
+
+# missing data for 133 
+Hunger_grp2 <- subset(Hunger_grp2, participant != 133)
+
+Hunger_grp2$Cohort <- "Cohort 2"
+
+# NOTE: STUDY 2 HUNGER HAS 51 NOT 52 PARTICIPANTS because of missing data
+
+# t-test for pre- post-hunger for C2
+
+t.test(Hunger_grp2$Post_Hunger, Hunger_grp2$Pre_Hunger, paired = TRUE, alternative = "two.sided")
+
+## t-test on C1 and C2 combined
+
+hunger_cohorts_combined <- bind_rows(Hunger_Difference_grp1,Hunger_grp2)
+
+t.test(hunger_cohorts_combined$Post_Hunger, hunger_cohorts_combined$Pre_Hunger, paired = TRUE, alternative = "two.sided")
+
+## checking for significant difference in hunger between cohorts 
+
+hunger_diff_cohort <- lm(Hunger_Difference ~ Cohort, data = hunger_cohorts_combined)
+
+summary(hunger_diff_cohort)
+
+effectsize::eta_squared(hunger_diff_cohort, partial = FALSE)
+
+## mean hunger changes by cohort
+
+Hunger_Difference %>% 
+  summarize(mean = mean(Hunger_Difference2), sd = sd(Hunger_Difference2))
+
+Hunger_Difference_grp1 %>% 
+  summarize(mean = mean(Hunger_Difference), sd = sd(Hunger_Difference))
+
+Hunger_grp2 %>% 
+  summarize(mean = mean(Hunger_Difference), sd = sd(Hunger_Difference))
+
+```
+
+
+```{r calculating test-retest reliability}
+
+## Spearman Correlations 
+
+# dataframes for groups
+
+home <- subset(combined_ratings, FoodType == "Home") # Home
+foreign <- subset(combined_ratings, FoodType == "Foreign") # Foreign
+indians <- subset(combined_ratings, Home_Country == "India") # Indian
+americans <- subset(combined_ratings, Home_Country == "USA") # American
+
+## Familiarity aggregate
+
+Familiarity <- subset(combined_ratings, select = c(Familiarity, Familiarity2))
+cor.test(combined_ratings$Familiarity, combined_ratings$Familiarity2, method = "spearman") 
+
+# Familiarity correlations by group
+
+# Home 
+cor.test(home$Familiarity, home$Familiarity2, method = "spearman")
+# Foreign 
+cor.test(foreign$Familiarity, foreign$Familiarity2, method = "spearman")
+# Indian
+cor.test(indians$Familiarity, indians$Familiarity2, method = "spearman")
+# American 
+cor.test(americans$Familiarity, americans$Familiarity2, method = "spearman")
+
+## Nostalgia aggregate
+
+Nostalgia <- subset(combined_ratings, select = c(Nostalgia, Nostalgia2))
+cor.test(combined_ratings$Nostalgia, combined_ratings$Nostalgia2, method = "spearman") 
+
+# Nostalgia correlations by group
+
+# Home 
+cor.test(home$Nostalgia, home$Nostalgia2, method = "spearman")
+# Foreign 
+cor.test(foreign$Nostalgia, foreign$Nostalgia2, method = "spearman")
+# Indian
+cor.test(indians$Nostalgia, indians$Nostalgia2, method = "spearman")
+# American 
+cor.test(americans$Nostalgia, americans$Nostalgia2, method = "spearman")
+
+### SECOND ASSESSMENT - PREDICTING RATINGS 
+
+# Familiarity
+
+test_retest_fam <- lmer(Familiarity2 ~ Familiarity + (1|participant) + (1|ImageName), data = combined_ratings)
+
+anova(test_retest_fam, type = "marginal")
+summary(test_retest_fam)
+effectsize::eta_squared(test_retest_fam, partial = FALSE)
+
+# Nostalgia
+
+test_retest_nos <- lmer(Nostalgia2 ~ Nostalgia + (1|participant) + (1|ImageName), data = combined_ratings)
+
+anova(test_retest_nos, type = "marginal")
+summary(test_retest_nos)
+effectsize::eta_squared(test_retest_nos, partial = FALSE)
+
+### THIRD ASSESSMENT - ONE SAMPLE EQUIVALENCE TEST
+
+## Familiarity
+
+fam_grp <- subset(combined_ratings, select = c(Familiarity, Familiarity2, participant)) # get ratings 
+fam_grp_pivot <- pivot_longer(fam_grp, cols = -participant,names_to = "time",values_to = "Familiarity") # make df long
+fam_test_retest <- lmer(Familiarity ~ time + (1|participant), data = fam_grp_pivot) # make model
+
+# define the bounds 
+bound_u <-  1
+bound_l <- -1
+
+# find the values 
+lower <- contest1D(fam_test_retest, c(0, 1), confint=TRUE, rhs=bound_l)
+upper <- contest1D(fam_test_retest, c(0, 1), confint=TRUE, rhs=bound_u)
+
+# output results 
+lower
+upper
+
+## Nostalgia (for notes check code for familiarity)
+
+nos_grp <- subset(combined_ratings, select = c(Nostalgia, Nostalgia2, participant))
+nos_grp_pivot <- pivot_longer(nos_grp, cols = -participant,names_to = "time",values_to = "Nostalgia")
+mixed_test_retest <- lmer(Nostalgia ~ time + (1|participant), data = nos_grp_pivot)
+
+# define the bounds, find values, output results
+
+bound_u <-  1
+bound_l <- -1
+
+lower <- contest1D(mixed_test_retest, c(0, 1), confint=TRUE, rhs=bound_l)
+upper <- contest1D(mixed_test_retest, c(0, 1), confint=TRUE, rhs=bound_u)
+
+lower
+upper
+
+```
+
+```{r convergent validity - trait nostalgia}
+
+# Trait nostalgia dataframe 
+
+trait_nostalgia_IndAmc <- read_excel("/Users/hetvidoshi176/Downloads/Post_ATM_April 4, 2024_08-2.xlsx",2)
+
+## remove Indian Americans and modify dataframe
+
+trait_nostalgia <- trait_nostalgia_IndAmc %>% 
+  filter(!participant %in% c(106,119,123,126,127,137,139,140,141,144,148,160,162)) %>% 
+  mutate(participant = as.numeric(participant)) %>% 
+  mutate(Trait_Nostalgia = as.numeric(Trait_Nostalgia)) %>% 
+  mutate(Home_Country = as.factor(Home_Country))
+
+## Nostalgia Magnitude 
+
+# Dataframe
+
+# calculate mean nostalgic value per person by food relationship
+
+mean_nos_score_person_cohort2 <- group_2_nothali %>% 
+  group_by(FoodType, participant) %>% # Home Country irrelavant for grouping 
+  summarize(mean = mean(NosSlider.response,na.rm = TRUE))
+
+combining_meantrait <- mean_nos_score_person_cohort2 |> left_join(trait_nostalgia, by = c('participant'))
+
+magnitude_and_trait <- combining_meantrait %>% 
+  select(participant, FoodType, mean, Trait_Nostalgia) %>% 
+  mutate(FoodType = as.factor(FoodType)) %>% 
+  mutate(magnitude_z = scale(mean, center = TRUE, scale = TRUE),
+         trait_z = scale(Trait_Nostalgia, center = TRUE, scale = TRUE))
+
+
+# linear model for trait on magnitude (if you wanna check mean and sd of z scores do mean(variable) in console). below model is effect of trait on state controlling for foodtype. ignore the value. 
+
+trait_on_magnitude <- lmer(mean ~ Trait_Nostalgia + FoodType + (1|participant), data = magnitude_and_trait) 
+
+summary(trait_on_magnitude)
+
+effectsize::eta_squared(trait_on_magnitude, partial = FALSE)
+
+## Nostalgia Proneness 
+
+# Dataframe
+
+high_nostalgia_AMT <- group_2_nothali %>% 
+  group_by(FoodType) %>% 
+  subset(NosSlider.response >= 5) %>% 
+  count(participant)
+
+nostalgia_proneness_state_trait <- high_nostalgia_AMT |> left_join(trait_nostalgia, by = c('participant'))
+
+nostalgia_proneness_state_trait <- nostalgia_proneness_state_trait %>% 
+  select(participant, FoodType, Trait_Nostalgia, n) %>% 
+  mutate(FoodType = as.factor(FoodType)) %>% 
+  mutate(proneness_z = scale(n,scale = TRUE))
+
+# Model 
+
+trait_on_proneness <- lmer(n ~ Trait_Nostalgia + FoodType + (1|participant), data = nostalgia_proneness_state_trait)
+
+summary(trait_on_proneness)
+
+effectsize::eta_squared(trait_on_proneness, partial = FALSE)
+
+## HOME COUNTRY AND TRAIT 
+
+hc_trait <- lm(Trait_Nostalgia ~ Home_Country, data = trait_nostalgia, na.action = na.exclude)
+
+summary(hc_trait)
+
+summary(aov(hc_trait))
+
+effectsize::eta_squared(hc_trait, partial = FALSE)
+
+```
+
+```{r divergent validity familiarity}
+
+# Familiarity predicting nostalgia
+
+fam_nos <- lmer(NosSlider.response ~ FamSlider.response + (1|participant) + (1|Cohort) + (1|ImageName), data = binned_groups_combined, na.action = na.exclude)
+
+summary(fam_nos)
+
+effectsize::eta_squared(fam_nos, partial = FALSE)
+
+# Home Country and Food Relationship predicting familiarity 
+
+fam <- lmer(FamSlider.response ~ Home_Country * Food_Relationship + (1|participant) + (1|Cohort) + (1|ImageName), data = binned_groups_combined, na.action = na.exclude)
+
+summary(fam)
+
+anova(fam, type = "marginal")
+
+effectsize::eta_squared(fam, partial = FALSE)
+
+emmeans(fam, revpairwise ~ Home_Country | Food_Relationship)
+
+# Home Country and Food Relationship predicting nostalgia 
+
+nos <- lmer(NosSlider.response ~ Home_Country * Food_Relationship + FamSlider.response + (1|participant) + (1|Cohort) + (1|ImageName), data = binned_groups_combined, na.action = na.exclude)
+
+summary(nos)
+
+anova(nos, type = "marginal")
+
+effectsize::eta_squared(nos, partial = FALSE)
+
+emmeans(nos, pairwise ~ Home_Country | Food_Relationship)
+
+```
+
+```{r Figure 3}
+
+emfam <- data.frame(emmeans(fam, ~ Home_Country + Food_Relationship))
+emnos <- data.frame(emmeans(nos, ~ Home_Country + Food_Relationship))
+
+emfam$variable <- c("Familiarity")
+emnos$variable <- c("Nostalgic Value")
+
+nos_fam_em <- rbind(emfam, emnos) 
+
+# rename levels of food relationship
+
+nos_fam_em <- nos_fam_em %>% 
+  mutate(Food_Relationship = case_when(Food_Relationship == "Home" ~ "Home Foods",
+                               TRUE ~ "Foreign Foods")) %>% 
+  mutate(Food_Relationship = as.factor(Food_Relationship)) %>% 
+  mutate(Food_Relationship = relevel(Food_Relationship, ref = "Home Foods"))
+
+  
+# plotting as bar graphs
+
+sig_2=data.frame(x=c(1.2,0.7), xend=c(2.4,1.70),
+                              y=c(8.4,8.6), Food_Relationship = c("Home Foods", "Home Foods","Foreign Foods","Foreign Foods"),annotation=c("***","n.s.","***","***"))
+
+sig_2 <- sig_2 %>% 
+  mutate(Food_Relationship = as.factor(Food_Relationship)) %>% 
+  mutate(Food_Relationship = relevel(Food_Relationship, ref = "Home Foods"))
+
+ggplot(nos_fam_em, aes(x = Home_Country, y = emmean)) +
+  geom_bar(aes(fill = variable), position = position_dodge(),stat = 'identity') +
+  scale_y_continuous(labels = seq(1,9,1), breaks = seq(1,9,1)) +
+  labs(y = "Estimated value", x = "Home Country", fill = "Variable") +
+  theme(legend.position = "top") + 
+  facet_wrap(~ Food_Relationship) + 
+  scale_fill_manual(values = c("lightgray","darkslateblue")) +
+  geom_errorbar(aes(fill = variable, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.25, position = position_dodge(.9)) +
+  # geom_signif(comparisons=list(c("USA", "India")), annotations="***",
+              # y_position = 7, tip_length = 0, vjust=0.4) + # added in confidence intervals 
+  geom_signif(stat="identity", manual = FALSE,
+             data = sig_2, 
+            aes(x=x,xend=xend, y=y, yend=y, annotation=annotation)) +
+  theme(panel.background = element_blank(), strip.background = element_blank(), axis.line = element_line(color = "black"),
+        legend.position = "bottom")
+
+```
+
+```{r nomethetic nostalgic values based on Food Relationship}
+
+# Food Relationship on nostalgic value 
+
+nos_foodtype <- lmer(NosSlider.response ~ Food_Relationship + (1|participant) + (1|ImageName) + (1|Cohort), data = binned_groups_combined) # aim would be to show how foreign foods have more low nostalgia 
+
+summary(nos_foodtype)
+
+effectsize::eta_squared(nos_foodtype, partial = FALSE)
+
+# Logistic Regression - whether the ratio of medium to low is different between foreign foods and home foods 
+
+low_medium <- binned_groups_combined %>% 
+  filter(nos_group %in% c("Low Nostalgia","Medium Nostalgia")) %>% 
+  mutate(nos_group = as.factor(nos_group))
+
+nos_lowmedium <- glmer(nos_group ~ Food_Relationship + (1|participant) + (1|ImageName), data = low_medium, family = binomial)
+
+summary(nos_lowmedium)
+
+# Logistic Regression - whether the ratio of high to medium is different between foreign foods and home foods 
+
+high_medium <- binned_groups_combined %>% 
+  mutate(nos_group = as.factor(nos_group)) %>% 
+  mutate(Numeric_group = case_when(nos_group == "Medium Nostalgia" ~ 0, T ~ 1))
+
+nos_highmedium <- glmer(Numeric_group ~ Food_Relationship + (1|participant) + (1|ImageName) + (1|Cohort), data = high_medium, family = binomial)
+
+summary(nos_highmedium)
+
+```
+
+```{r Table 1 descriptive statistics}
+
+# Step 1: how many images fell into low, medium, and high bins per person
+
+ppl_combined_hf <- binned_groups_combined %>% 
+  group_by(participant, Food_Relationship) %>% 
+  count(nos_group) 
+
+# Step 2: what is the proportion per person
+
+prop_ppl_combined_hf <- ppl_combined_hf %>% 
+  group_by(participant,Food_Relationship) %>%
+  mutate(total = sum(n)) %>% 
+  ungroup() %>% 
+  mutate(proportion = n/total) 
+
+# Step 3: what is mean proportion 
+
+prop_ppl_combined_hf %>% 
+  group_by(nos_group, Food_Relationship) %>% 
+  summarize(mean = mean(proportion))
+
+# Step 4: manually convert the proportions into percentages by multiplying into 100
+
+```
+
+```{r Figure 4}
+
+## create dataframe for figure 
+
+# calculates for each image number of people that rated it at each level of nostalgic value
+
+img_combined_hf_AllNos <- binned_groups_combined %>%
+  drop_na(NosSlider.response) %>% 
+  summarize(count_nos = n(),.by = c("ImageName", "Food_Relationship", "Cohort","NosSlider.response")) %>% 
+  mutate(sum = sum(count_nos), .by = c("ImageName", "Food_Relationship", "Cohort")) %>% 
+  arrange(ImageName,Food_Relationship,Cohort,NosSlider.response) %>% 
+  mutate(proportion = count_nos/sum) %>% 
+  mutate(NosSlider.response = as.numeric(NosSlider.response)) 
+
+# calculates avg proportion of ratings for each level of nostalgic value 
+
+cols_togroup = c("Food_Relationship", "Cohort", "NosSlider.response")
+
+prop_all_images <- img_combined_hf_AllNos %>% 
+  summarize(sum_of_proportions = sum(proportion),.by = cols_togroup) %>% 
+  mutate(avg_proportion = sum_of_proportions/194) %>% 
+  mutate(avg_percent = avg_proportion*100) 
+
+# Figure 
+
+prop_all_images %>%  
+  ggplot(aes(x = NosSlider.response, y = avg_percent, group = Food_Relationship)) +
+  geom_line(aes(color = Food_Relationship)) +
+  geom_point(aes(color = Food_Relationship)) +
+  scale_y_continuous(breaks = seq(0, 70, 5), limits = c(0, 70)) +  # Set Y-axis from 1 to 70 with increments of 5
+  scale_x_continuous(breaks = seq(1, 7, 1)) +  # Ensure tick marks on X-axis from 1 to 7
+  scale_color_manual(values = c("forestgreen", "red")) + 
+  facet_wrap(~ Cohort, scales = "free_x") + 
+  labs(
+    x = "Nostalgic Value", 
+    y = "Average % of Images Rated", 
+    color = "Food Relationship"
+  ) + 
+  theme_minimal() + 
+  theme(
+    axis.line = element_line(color = "black", linewidth = 0.5),  # Add X and Y axis lines
+    axis.ticks.x = element_line(color = "black"),  # Add ticks on the X-axis
+    axis.ticks.y = element_line(color = "black"),  # Add ticks on the Y-axis
+    axis.text.x = element_text(size = 12),  # Optional: Adjust size of x-axis text
+    axis.text.y = element_text(size = 12),  # Optional: Adjust size of y-axis text
+    panel.grid.major = element_blank(),  # Remove major grid lines
+    panel.grid.minor = element_blank(),  # Remove minor grid lines
+    strip.background = element_blank(),  # Remove facet strip background
+    legend.position = "bottom"
+  )
+
+
+```
+
+```{r idiographic nostalgic value : stimulus set variability}
+
+## mean proportions 
+
+# Low
+
+binned_groups_combined %>% 
+  summarize(proportion_low = mean(nos_group == "Low Nostalgia"),.by = participant) %>% 
+  summarize(mean_low = mean(proportion_low))
+
+# Medium
+
+binned_groups_combined %>% 
+  summarize(proportion_medium = mean(nos_group == "Medium Nostalgia"),.by = participant) %>% 
+  summarize(mean_medium = mean(proportion_medium))
+
+# High
+
+binned_groups_combined %>% 
+  summarize(proportion_high = mean(nos_group == "High Nostalgia"),.by = participant) %>% 
+  summarize(mean_high = mean(proportion_high))
+
+# MAD calculation
+
+binned_groups_combined %>% 
+  summarize(mean_high = sum(nos_group == "High Nostalgia"),.by = participant) %>% 
+  summarize(max = max(mean_high),min = min(mean_high),mad = mad(mean_high))
+
+```
+
+
+```{r Figure 5}
+
+# Step 1: create new column for each Image with its high nostalgic value proportion
+
+prop_img_cohorts_combined2 <- prop_img_cohorts_combined %>%
+  group_by(FoodGroup, Cohort, ImageName) %>%
+  summarize(high_nostalgia_prop = sum(proportion[nos_group == "High Nostalgia"], na.rm = TRUE)) %>%
+  ungroup() %>%
+  left_join(prop_img_cohorts_combined, by = c("FoodGroup", "Cohort", "ImageName")) %>% 
+  mutate(nos_group = case_when(nos_group == "High Nostalgia" ~ "High",
+                               nos_group == "Medium Nostalgia" ~ "Medium",
+                               TRUE ~ "Low"))
+
+# Step 1: Calculate mean high nostalgia proportion for each ImageName across all FoodGroups and Cohorts for X-axis ordering
+prop_img_cohorts_combined2 <- prop_img_cohorts_combined2 %>%
+  group_by(ImageName) %>%
+  mutate(high_nostalgia_prop_global = mean(proportion[nos_group == "High"], na.rm = TRUE)) %>%
+  ungroup() %>% 
+  mutate(ImageName = factor(ImageName, levels = unique(ImageName[order(-high_nostalgia_prop_global)])))
+
+# Step 2: Plot the graph with ggplot handling reordering
+ggplot(prop_img_cohorts_combined2, 
+       aes(fill = factor(nos_group, levels = c("High", "Medium", "Low")), 
+           x = reorder(ImageName, -high_nostalgia_prop), # Reorder ImageName by high_nostalgia_prop
+           y = proportion)) +
+  geom_bar(position = "stack", stat = "identity") +
+  facet_wrap(FoodGroup ~ Cohort, scales = "free_x", labeller = labeller(FoodGroup = FoodGroup.labs)) +
+  labs(x = "Food Items", y = "Proportion of People", fill = "Nostalgic Value Bin") +
+  theme(axis.text.x = element_blank(), # Rotate x-axis labels for readability
+        panel.background = element_blank(), 
+        legend.position = "bottom",
+        strip.background = element_rect(colour = "white", fill = "grey"), 
+        strip.text = element_text(colour = 'black')) +
+  scale_fill_grey()
+
+```
+
+```{r Krippendorf's alpha and Table 2}
+
+## Aggregate Nostalgia 
+
+# create dataframe
+
+wider_grp_aggregate_nostalgia <- binned_groups_combined %>% 
+  dplyr::select(participant, ImageName, NosSlider.response) %>% 
+  pivot_wider(names_from = ImageName, values_from = NosSlider.response)
+
+wider_grp_aggregate_nostalgia = wider_grp_aggregate_nostalgia[,-1]
+
+# calculate aggregate
+
+kripp.alpha(as.matrix(wider_grp_aggregate_nostalgia), method = "ordinal")
+
+## create dataframes for groups
+
+## Home food USA
+
+wider_grp_comb_usa_home_nos <- binned_groups_combined %>% 
+  filter(Food_Relationship == "Home" & Home_Country == "USA") %>% 
+  group_by(Cohort) %>% 
+  dplyr::select(Food_Relationship, Home_Country, participant, ImageName, NosSlider.response) %>% 
+  pivot_wider(names_from = ImageName, values_from = NosSlider.response) 
+
+grp1_usa <- subset(wider_grp_comb_usa_home_nos, Cohort == "Cohort 1", select = -c(participant, Cohort, Home_Country,Food_Relationship))
+grp2_usa <- subset(wider_grp_comb_usa_home_nos, Cohort == "Cohort 2", select = -c(participant, Cohort, Home_Country,Food_Relationship))
+
+# calculate Alpha for Americans - Home Foods
+
+kripp.alpha(as.matrix(grp1_usa), method = "ordinal")
+
+kripp.alpha(as.matrix(grp2_usa), method = "ordinal")
+
+## Home Food India
+
+wider_grp_comb_home_ind_nos <- binned_groups_combined %>% 
+  filter(Food_Relationship == "Home" & Home_Country == "India") %>% 
+  group_by(Cohort) %>% 
+  dplyr::select(Food_Relationship, Home_Country, participant, ImageName, NosSlider.response) %>% 
+  pivot_wider(names_from = ImageName, values_from = NosSlider.response) 
+
+grp1_india_hn <- subset(wider_grp_comb_home_ind_nos, Cohort == "Cohort 1", select = -c(participant, Cohort, Home_Country,Food_Relationship))
+grp2_india_hn <- subset(wider_grp_comb_home_ind_nos, Cohort == "Cohort 2", select = -c(participant, Cohort, Home_Country,Food_Relationship))
+
+kripp.alpha(as.matrix(grp1_india_hn), method = "ordinal") 
+
+kripp.alpha(as.matrix(grp2_india_hn), method = "ordinal")
+
+## Foreign Food USA
+
+wider_grp_comb_usa_for_nos <- binned_groups_combined %>% 
+  filter(Food_Relationship == "Foreign" & Home_Country == "USA") %>% 
+  group_by(Cohort) %>% 
+  dplyr::select(Food_Relationship, Home_Country, participant, ImageName, NosSlider.response) %>% 
+  pivot_wider(names_from = ImageName, values_from = NosSlider.response) 
+
+grp1_usa_fn <- subset(wider_grp_comb_usa_for_nos, Cohort == "Cohort 1", select = -c(participant, Cohort, Home_Country,Food_Relationship))
+
+grp2_usa_fn <- subset(wider_grp_comb_usa_for_nos, Cohort == "Cohort 2", select = -c(participant, Cohort, Home_Country,Food_Relationship))
+
+
+kripp.alpha(as.matrix(grp1_usa_fn), method = "ordinal")
+
+kripp.alpha(as.matrix(grp2_usa_fn), method = "ordinal")
+
+## Foreign Food India
+
+wider_grp_comb_for_ind_nos <- binned_groups_combined %>% 
+  filter(Food_Relationship == "Foreign" & Home_Country == "India") %>% 
+  group_by(Cohort) %>% 
+  dplyr::select(Food_Relationship, Home_Country, participant, ImageName, NosSlider.response) %>% 
+  pivot_wider(names_from = ImageName, values_from = NosSlider.response)
+
+grp1_india_fn <- subset(wider_grp_comb_for_ind_nos, Cohort == "Cohort 1", select = -c(participant, Cohort, Home_Country,Food_Relationship))
+
+grp2_india_fn <- subset(wider_grp_comb_for_ind_nos, Cohort == "Cohort 2", select = -c(participant, Cohort, Home_Country,Food_Relationship))
+
+kripp.alpha(as.matrix(grp1_india_fn), method = "ordinal") 
+
+kripp.alpha(as.matrix(grp2_india_fn), method = "ordinal")
+
+
+```
+
+
+```{r Consitently high ranking nostalgic value items}
+
+
+# first get number of images greater than 1.5 SD 
+
+high_nostalgia_grp1 <- proportions_img_grp1 %>% 
+  filter(nos_group == "High Nostalgia") 
+
+high_nostalgia_grp1_stats <- high_nostalgia_grp1 %>% 
+  summarize(mean = mean(proportion),
+            sd = sd(proportion), 
+            threshold = mean + 1.5*sd)
+
+high_nostalgia_grp1_stats
+
+# The threshold is 0.406 for C1
+
+high_nostalgia_grp1$higher_group <- ifelse(high_nostalgia_grp1$proportion > high_nostalgia_grp1_stats$threshold, "High", "Normal")
+
+
+### DO THE SAME FOR COHORT 1 R 
+
+high_nostalgia_G1R <- proportions_img_G1R %>% 
+  filter(nos_group == "High Nostalgia")
+
+high_nostalgia_G1R_stats <- high_nostalgia_G1R %>% 
+  summarize(mean = mean(proportion),
+            sd = sd(proportion), 
+            threshold = mean + 1.5*sd)
+
+high_nostalgia_G1R_stats
+
+# The threshold is 0.456 for C1T2
+
+high_nostalgia_G1R$higher_group <- ifelse(high_nostalgia_G1R$proportion > high_nostalgia_G1R_stats$threshold, "High", "Normal")
+
+
+## DO THE SAME FOR COHORT 2
+
+high_nostalgia_grp2 <- proportions_img_grp2 %>% 
+  filter(nos_group == "High Nostalgia")
+
+high_nostalgia_grp2_stats <- high_nostalgia_grp2 %>% 
+  summarize(mean = mean(proportion),
+            sd = sd(proportion), 
+            threshold = mean + 1.5*sd)
+
+high_nostalgia_grp2_stats
+
+# The threshold is 0.375 for C2
+
+high_nostalgia_grp2$higher_group <- ifelse(high_nostalgia_grp2$proportion > high_nostalgia_grp2_stats$threshold, "High", "Normal")
+
+```
+
+
+```{r Figure 6}
+
+my_colors <- RColorBrewer::brewer.pal(6, "Set1")[4:6]
+
+p1_g1_img <- high_nostalgia_grp1 %>% 
+  filter(higher_group == "High") %>%
+  ggplot(aes(x = fct_rev(fct_reorder(ImageName,proportion,.fun=sum)), y=proportion, fill = FoodGroup)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  # facet_wrap(~FoodType, scales = "free_x") +
+  scale_fill_manual(values = my_colors) +
+  scale_y_continuous(limits = c(0,1)) +
+  labs(x = "Food Item", y = "Proportion of People", title = "Cohort 1", fill = "Food Country") +
+  guides(fill = "none") +
+  # scale_x_continuous(breaks = seq(200,246,1)) + 
+  theme(axis.text.x = element_text(angle = 60, vjust=0.5, size = 10),
+        panel.background = element_blank(), 
+        axis.line = element_line(size = 0.5, linetype = "solid",
+                                   colour = "black")) 
+
+p1_g1R_img <- high_nostalgia_G1R %>% 
+  filter(higher_group == "High") %>%
+  ggplot(aes(x = fct_rev(fct_reorder(ImageName,proportion,.fun=sum)), y=proportion, fill = FoodType)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  # facet_wrap(~FoodType, scales = "free_x") +
+  scale_fill_manual(values = my_colors) +
+  scale_y_continuous(limits = c(0,1)) +
+  labs(x = "Food Item", y = "Proportion of People", title = "Cohort 1 T2", fill = "Food Country") +
+  guides(fill = "none") +
+  # scale_x_continuous(breaks = seq(200,246,1)) + 
+  theme(axis.text.x = element_text(angle = 60, vjust=0.5, size = 10),
+        panel.background = element_blank(), 
+        axis.line = element_line(size = 0.5, linetype = "solid",
+                                   colour = "black")) 
+
+
+p2_g2_img <- high_nostalgia_grp2 %>% 
+  filter(higher_group == "High") %>%
+  ggplot(aes(x = fct_rev(fct_reorder(ImageName,proportion,.fun=sum)), y=proportion, fill = FoodGroup)) +
+  geom_bar(stat = "identity") +
+  # facet_wrap(~FoodType, scales = "free_x") +
+  scale_fill_manual(values = my_colors) +
+  scale_y_continuous(limits = c(0,1)) +
+  labs(x = "Food Item", y = "Proportion of People", title = "Cohort 2", fill = "Food Country") +
+  guides(fill = "none") +
+  # scale_x_continuous(breaks = seq(200,246,1)) + 
+  theme(axis.text.x = element_text(angle = 60, vjust=0.5, size = 10),
+        panel.background = element_blank(), 
+        axis.line = element_line(size = 0.5, linetype = "solid",
+                                   colour = "black")) 
+
+p2_g2_img_legend <- proportions_img_grp2 %>% 
+  filter(nos_group == "High Nostalgia") %>%
+  #group_by(FoodType) %>% 
+  mutate(rank = rank(-proportion, ties.method = "random")) %>% # negative cuz descending
+  #ungroup() %>% 
+  filter(rank <= 20) %>% 
+  ggplot(aes(x = fct_rev(fct_reorder(ImageName,proportion,.fun=sum)), y=proportion, fill = FoodGroup)) +
+  geom_bar(stat = "identity") +
+  # facet_wrap(~FoodType, scales = "free_x") +
+  scale_fill_manual(values = my_colors) +
+  scale_y_continuous(limits = c(0,1)) +
+  labs(x = "Food Item", y = "Proportion of People",fill = "Food Country") +
+  # scale_x_continuous(breaks = seq(200,246,1)) + 
+  theme(axis.text.x = element_text(angle = 60, vjust=0.5, size = 10),
+        panel.background = element_blank(), 
+        axis.line = element_line(size = 0.5, linetype = "solid",
+                                   colour = "black"), legend.position = "bottom") 
+
+
+combined_highnos_food <- grid.arrange(p1_g1_img, p1_g1R_img, p2_g2_img, nrow = 1)
+
+highnos_legend <- get_only_legend(p2_g2_img_legend)  
+
+grid.arrange(combined_highnos_food, highnos_legend, nrow = 2, heights = c(10, 1))
+```
+
+
+```{r Figure 7}
+
+## NOTE: Whenever this graph is generated, a different set of foods and participants will be selected, so it will not match the graph in the manuscript. 
+
+# for facet wrapping 
+cp <- coord_polar()
+cp$is_free <- function() TRUE # to make scales = free work for coord polar 
+
+# Step 1: select 20 random images
+
+foods_for_graph <- binned_groups_combined %>% 
+          select(ImageName, FoodGroup) %>% 
+           unique() %>% 
+           group_by(FoodGroup) %>% 
+           slice_sample(n = 10) %>% 
+           ungroup() %>% 
+           pull(ImageName)
+
+# Step 2: select four random participants
+
+participants_for_graph <- binned_groups_combined %>% 
+          select(Home_Country, participant, Cohort) %>% 
+           unique() %>% 
+           group_by(Home_Country,Cohort) %>% 
+           slice_sample(n = 1) %>% 
+           ungroup() %>% 
+           pull(participant)
+
+# update dataframe so that it plots well 
+
+binned_groups_combined_graph_df <- binned_groups_combined %>% # the blank is a duplicate of wings to make it join back together. 
+  filter(ImageName == tail(str_sort(foods_for_graph), n = 1)) %>% # whatever food is last in foods_for_graph
+  mutate(ImageName = " ") 
+
+binned_groups_combined_graph_df <- rbind(binned_groups_combined, binned_groups_combined_graph_df) 
+
+# change labels 
+
+homecountry.labs <- c("USA" = "American participant", "India" = "Indian participant")
+
+## Spider Plot
+
+binned_groups_combined_graph_df %>% 
+  filter(participant %in% participants_for_graph) %>% 
+  filter(ImageName %in% c(" ",foods_for_graph)) %>% 
+  dplyr::select(participant, ImageName, NosSlider.response, FoodGroup, Cohort, Home_Country) %>%
+  mutate(participant = as.character(participant)) %>% 
+  na.omit() %>% 
+  mutate(ImageNameWrap = str_wrap(ImageName,10)) %>% 
+  ggplot(aes(x = fct_relevel(fct_reorder(ImageNameWrap,FoodGroup), "",), y = NosSlider.response, shape = FoodGroup, color = participant, group = participant)) +
+  geom_point() +
+  geom_line(aes(fill = participant)) +
+  geom_area(aes(fill = participant), position = "identity", alpha = 0.7) +
+  scale_x_discrete(expand = c(0, -0.25)) + 
+  scale_y_continuous(breaks = seq(1,7,1)) +
+  coord_polar() +
+  facet_wrap(Home_Country ~ Cohort, labeller = labeller(Home_Country = homecountry.labs)) +
+  guides(group = FALSE,color = FALSE,fill = FALSE) +
+  labs(x = "Food Item", y = "Nostalgic Value",shape = "Food Country") +
+  theme_bw() +
+  theme(aspect.ratio = 1, axis.text.x = element_text(angle = 10, size = 7), legend.position = "bottom")
+
+
+```
+
+## THE END
+
